@@ -1,0 +1,1031 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>L'Escape Room della Strega - La Prigione di Halloween</title>
+  <link href="https://fonts.googleapis.com/css2?family=Creepster&family=Nosifer&family=MedievalSharp&family=Cinzel:wght@600;800&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    body {
+      background-color: #030108;
+      color: #e0d8f0;
+      font-family: 'MedievalSharp', cursive, serif;
+      overflow-x: hidden;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+    }
+
+    /* SFONDO E NEBBIA */
+    .fog-container {
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      pointer-events: none;
+      z-index: 1;
+      background: radial-gradient(circle at center, rgba(20,0,35,0.4) 0%, rgba(3,1,8,0.98) 90%);
+      overflow: hidden;
+    }
+
+    .fog {
+      position: absolute;
+      top: 0; left: 0; width: 200%; height: 100%;
+      background: url('https://raw.githubusercontent.com/daniel-shiffman/workshops/master/processing/p5js/fog.png') repeat-x;
+      background-size: cover;
+      opacity: 0.15;
+      animation: moveFog 35s linear infinite;
+    }
+
+    @keyframes moveFog {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
+    }
+
+    /* VIGNETTATURA E TORCIA */
+    .vignette {
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      box-shadow: inset 0 0 150px rgba(0,0,0,0.95);
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    .flashlight {
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      pointer-events: none;
+      z-index: 3;
+      background: radial-gradient(circle 320px at var(--mouse-x, 50%) var(--mouse-y, 50%), transparent 0%, rgba(0, 0, 0, 0.92) 100%);
+    }
+
+    /* CONTENITORE PIPISTRELLI VOLANTI */
+    #batContainer {
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      pointer-events: none;
+      z-index: 4;
+      overflow: hidden;
+    }
+
+    .bat {
+      position: absolute;
+      width: 50px;
+      height: 30px;
+      background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 60"><path fill="%23111" d="M50 25 C30 0 10 10 0 35 C15 35 25 45 35 35 C42 45 48 45 50 40 C52 45 58 45 65 35 C75 45 85 35 100 35 C90 10 70 0 50 25 Z"/></svg>') no-repeat center center;
+      background-size: contain;
+      opacity: 0;
+      filter: drop-shadow(0 0 6px #000);
+      transition: opacity 0.4s ease-in-out;
+    }
+
+    @keyframes flap {
+      0%, 100% { transform: scaleY(1) scaleX(1); }
+      50% { transform: scaleY(0.4) scaleX(0.9); }
+    }
+
+    .bat-animating {
+      animation: flap 0.25s infinite alternate;
+    }
+
+    /* CONTENITORE PRINCIPALE APP */
+    #app {
+      position: relative;
+      z-index: 10;
+      width: 90%;
+      max-width: 850px;
+      margin: 20px auto;
+      padding: 30px;
+      background: rgba(12, 5, 20, 0.92);
+      border: 3px solid #5a189a;
+      box-shadow: 0 0 35px rgba(157, 78, 221, 0.25), inset 0 0 25px rgba(0,0,0,0.85);
+      border-radius: 12px;
+      text-align: center;
+      backdrop-filter: blur(4px);
+    }
+
+    h1.title {
+      font-family: 'Nosifer', cursive;
+      color: #ff3300;
+      text-shadow: 0 0 15px #ff0000, 3px 3px 0px #000;
+      font-size: 2.1rem;
+      margin-bottom: 15px;
+      letter-spacing: 2px;
+    }
+
+    h2.room-title {
+      font-family: 'Creepster', cursive;
+      color: #ff9e00;
+      font-size: 2rem;
+      text-shadow: 2px 2px 5px #000;
+      margin-bottom: 10px;
+    }
+
+    .subtitle {
+      font-size: 1.1rem;
+      color: #c77dff;
+      margin-bottom: 20px;
+      font-style: italic;
+    }
+
+    .witch-avatar {
+      width: 130px;
+      height: 130px;
+      margin: 0 auto 15px;
+      border-radius: 50%;
+      border: 3px solid #ff9e00;
+      box-shadow: 0 0 20px #ff9e00;
+      background-size: cover;
+      background-position: center;
+      animation: float 4s ease-in-out infinite, witchFlicker 6s infinite;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+
+    @keyframes witchFlicker {
+      0%, 90%, 100% { filter: brightness(1); }
+      92% { filter: brightness(0.2) hue-rotate(90deg); }
+      94% { filter: brightness(1.8); }
+      96% { filter: brightness(0.4); }
+    }
+
+    /* BARRA CHIAVI IN MEMORIA */
+    .keys-bar {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+      margin: 15px 0 20px;
+      background: rgba(0,0,0,0.6);
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #7b2cbf;
+    }
+
+    .key-box {
+      width: 46px;
+      height: 52px;
+      border: 2px solid #5a189a;
+      background: #0d001a;
+      border-radius: 6px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Cinzel', serif;
+      font-weight: bold;
+      color: #ff9e00;
+      font-size: 1.1rem;
+      box-shadow: inset 0 0 5px rgba(0,0,0,0.8);
+      position: relative;
+      transition: all 0.3s;
+    }
+
+    .key-box.filled {
+      border-color: #00ffcc;
+      color: #00ffcc;
+      box-shadow: 0 0 10px rgba(0, 255, 204, 0.4);
+    }
+
+    .key-box.wrong-blink {
+      border-color: #ff0000 !important;
+      color: #ff0000 !important;
+      cursor: pointer;
+      animation: blinkRed 0.6s infinite alternate;
+    }
+
+    .key-box.wrong-blink:hover {
+      transform: scale(1.1);
+      box-shadow: 0 0 20px #ff0000 !important;
+    }
+
+    @keyframes blinkRed {
+      0% { background: #0d001a; box-shadow: 0 0 2px #ff0000; }
+      100% { background: #500000; box-shadow: 0 0 15px #ff0000; }
+    }
+
+    .key-box-num {
+      font-size: 0.65rem;
+      color: #a0a0a0;
+      position: absolute;
+      top: 2px;
+    }
+
+    .key-box-val {
+      margin-top: 4px;
+    }
+
+    .edit-btn {
+      margin-top: 1px;
+      font-size: 0.6rem;
+      background: #ff0055;
+      color: #fff;
+      border: none;
+      padding: 2px 4px;
+      border-radius: 3px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    /* BOX TESTO E ENIGMI */
+    .puzzle-card {
+      background: rgba(25, 10, 38, 0.8);
+      border: 2px solid #7b2cbf;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 25px;
+      box-shadow: inset 0 0 15px rgba(0,0,0,0.6);
+      text-align: left;
+    }
+
+    .puzzle-text {
+      font-size: 1.2rem;
+      line-height: 1.6;
+      color: #f1f1f1;
+      margin-bottom: 15px;
+    }
+
+    .puzzle-visual {
+      background: #090212;
+      border: 1px dashed #9d4edd;
+      padding: 15px;
+      border-radius: 6px;
+      margin: 15px 0;
+      text-align: center;
+      font-family: 'Courier New', monospace;
+      font-weight: bold;
+      color: #00ffcc;
+      font-size: 1.25rem;
+      white-space: pre-wrap;
+    }
+
+    /* OPZIONI DI RISPOSTA */
+    .options-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 15px;
+      margin-top: 20px;
+    }
+
+    .opt-btn {
+      background: linear-gradient(145deg, #240046, #10002b);
+      color: #e0aaff;
+      border: 2px solid #5a189a;
+      padding: 14px 20px;
+      font-size: 1.1rem;
+      font-family: 'MedievalSharp', cursive;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.5);
+    }
+
+    .opt-btn:hover {
+      background: linear-gradient(145deg, #3c096c, #240046);
+      border-color: #ff9e00;
+      color: #fff;
+      transform: translateY(-3px) scale(1.02);
+      box-shadow: 0 0 15px rgba(255, 158, 0, 0.4);
+    }
+
+    .opt-badge {
+      background: #ff3300;
+      color: #fff;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-family: 'Cinzel', serif;
+      box-shadow: 0 0 8px #ff3300;
+      flex-shrink: 0;
+    }
+
+    /* TASTIERINO FINALE DI LIBERTÀ */
+    .keypad-display {
+      background: #000;
+      border: 2px solid #ff9e00;
+      color: #00ffcc;
+      font-family: 'Courier New', monospace;
+      font-size: 2.2rem;
+      letter-spacing: 12px;
+      padding: 15px;
+      border-radius: 8px;
+      margin: 15px auto;
+      max-width: 420px;
+      min-height: 40px;
+      box-shadow: inset 0 0 15px rgba(255, 158, 0, 0.4);
+    }
+
+    .keypad-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 10px;
+      max-width: 420px;
+      margin: 0 auto 20px;
+    }
+
+    .keypad-btn {
+      background: linear-gradient(145deg, #3a0ca3, #1a0040);
+      color: #fff;
+      border: 1px solid #7b2cbf;
+      font-family: 'Cinzel', serif;
+      font-size: 1.4rem;
+      font-weight: bold;
+      padding: 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .keypad-btn:hover {
+      background: #ff9e00;
+      color: #000;
+      box-shadow: 0 0 10px #ff9e00;
+    }
+
+    .keypad-btn.clear {
+      grid-column: span 2;
+      background: #9d0208;
+      font-size: 1rem;
+    }
+
+    .keypad-btn.submit {
+      grid-column: span 3;
+      background: #38b000;
+      font-size: 1rem;
+      color: #000;
+    }
+
+    /* BOTTONI PRINCIPALI */
+    .btn-main {
+      background: linear-gradient(145deg, #d00000, #9d0208);
+      color: #fff;
+      font-family: 'Nosifer', cursive;
+      font-size: 1.1rem;
+      padding: 15px 35px;
+      border: 2px solid #ffba08;
+      border-radius: 30px;
+      cursor: pointer;
+      box-shadow: 0 0 20px rgba(208, 0, 0, 0.6);
+      transition: all 0.3s ease;
+      margin-top: 15px;
+    }
+
+    .btn-main:hover {
+      transform: scale(1.08);
+      box-shadow: 0 0 30px rgba(255, 186, 8, 0.8);
+      background: linear-gradient(145deg, #dc2f02, #e85d04);
+    }
+
+    /* CONTROLLI AUDIO ON/OFF */
+    .audio-controls {
+      position: fixed;
+      top: 15px;
+      right: 15px;
+      z-index: 50;
+      display: flex;
+      gap: 10px;
+    }
+
+    .icon-btn {
+      background: rgba(10, 5, 20, 0.85);
+      border: 2px solid #7b2cbf;
+      color: #ff9e00;
+      padding: 8px 16px;
+      border-radius: 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 1rem;
+      font-family: 'MedievalSharp', cursive;
+      box-shadow: 0 0 12px rgba(0,0,0,0.8);
+      transition: all 0.3s;
+    }
+
+    .icon-btn.active {
+      border-color: #00ffcc;
+      color: #00ffcc;
+      box-shadow: 0 0 15px #00ffcc;
+    }
+
+    /* TRANSIZIONE PORTA */
+    .door-transition {
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      z-index: 100;
+      pointer-events: none;
+      display: flex;
+    }
+
+    .door-leaf {
+      width: 50%;
+      height: 100%;
+      background: #07020d;
+      border: 10px solid #1a002c;
+      box-sizing: border-box;
+      transition: transform 1.2s cubic-bezier(0.77, 0, 0.175, 1);
+    }
+
+    .door-left {
+      transform: translateX(-100%);
+      border-right: 5px solid #ff9e00;
+    }
+
+    .door-right {
+      transform: translateX(100%);
+      border-left: 5px solid #ff9e00;
+    }
+
+    .door-active .door-left { transform: translateX(0); }
+    .door-active .door-right { transform: translateX(0); }
+
+    /* ERROR FEEDBACK BANNER */
+    .error-banner {
+      background: rgba(180, 0, 0, 0.35);
+      border: 2px solid #ff0000;
+      color: #ff9999;
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      font-weight: bold;
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
+
+    @media (max-width: 600px) {
+      h1.title { font-size: 1.5rem; }
+      h2.room-title { font-size: 1.4rem; }
+      #app { padding: 16px; width: 95%; }
+      .options-grid { grid-template-columns: 1fr; }
+      .keys-bar { gap: 4px; padding: 6px; }
+      .key-box { width: 34px; height: 44px; font-size: 0.95rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="fog-container">
+    <div class="fog"></div>
+  </div>
+  <div class="vignette"></div>
+  <div class="flashlight"></div>
+
+  <!-- CONTENITORE DEDICATO AI PIPISTRELLI ANIMATI -->
+  <div id="batContainer"></div>
+
+  <!-- EFFETTO TRANSIZIONE PORTA -->
+  <div class="door-transition" id="doorOverlay">
+    <div class="door-leaf door-left"></div>
+    <div class="door-leaf door-right"></div>
+  </div>
+
+  <!-- CONTROLLO MUSICA ON/OFF (TOGGLE) -->
+  <div class="audio-controls">
+    <button class="icon-btn" id="toggleAudioBtn" onclick="toggleAudioMaster()">
+      <span id="audioIcon">🔇</span> <span id="audioText">Audio: SPENTO</span>
+    </button>
+  </div>
+
+  <!-- APP PRINCIPALE -->
+  <div id="app"></div>
+
+  <script>
+    /* ======================================================
+       DATI ENIGMI
+       ====================================================== */
+    const escapeData = {
+      intro: {
+        title: "IL CASTELLO DELLE OMBRE",
+        subtitle: "Un'oscura maledizione pende sulla tua anima...",
+        description: "BENVENUTO, POVERO MORTALE... Sei caduto nella mia trappola! Sei rinchiuso tra le mura millenarie del Castello della Notte. Potrai riconquistare la libertà solo se attraverserai le 7 stanze segrete. In ogni stanza dovrai scegliere una lettera per la porta: la porta si aprirà SEMPRE, ma memorizzerà la lettera che hai scelto! Alla fine dovrai inserire le 7 lettere sulla Porta della Libertà. Se la chiave sarà sbagliata, le lettere errate si evidenzieranno in rosso: Clicca direttamente sulla lettera rossa per tornare nella stanza e correggerla!",
+        witchImage: "https://images.unsplash.com/photo-1509557965875-b88c97052f0e?auto=format&fit=crop&w=400&q=80"
+      },
+      rooms: [
+        {
+          id: 1,
+          name: "Stanza 1: La Cripta dei Numeri Maledetti",
+          bgAmbient: "Un'oscura cripta infestata da ragnatele giganti. Candele viola fluttuano nell'aria.",
+          questionText: "2 - 4 - 7 - 11 - 16 - ...\nQuale numero devo mettere nella sequenza al posto dei tre puntini?",
+          visual: "2  -  4  -  7  -  11  -  16  -  ...",
+          options: [
+            { letter: "A", text: "19", val: "19" },
+            { letter: "B", text: "21", val: "21" },
+            { letter: "C", text: "20", val: "20" },
+            { letter: "D", text: "22", val: "22" },
+            { letter: "E", text: "24", val: "24" }
+          ],
+          correct: "D"
+        },
+        {
+          id: 2,
+          name: "Stanza 2: Il Laboratorio Alchemico",
+          bgAmbient: "Alambicchi ribollono di veleni verdi. Sul tavolo alchemico sono incisi cerchi magici.",
+          questionText: "Inserisci nei cerchietti i numeri da 1 a 9 (una sola volta) in modo che i risultati delle moltiplicazioni siano veri:\n⭕ x ⭕ = 20\n⭕ x ⭕ x ⭕ = 16\n⭕ x ⭕ = 18\n⭕ x ⭕ = ?\nQuanto vale il punto interrogativo?",
+          visual: "⭕ × ⭕ = 20\n⭕ × ⭕ × ⭕ = 16\n⭕ × ⭕ = 18\n⭕ × ⭕ = ?",
+          options: [
+            { letter: "A", text: "49", val: "49" },
+            { letter: "B", text: "21", val: "21" },
+            { letter: "C", text: "63", val: "63" },
+            { letter: "D", text: "64", val: "64" },
+            { letter: "E", text: "35", val: "35" }
+          ],
+          correct: "C"
+        },
+        {
+          id: 3,
+          name: "Stanza 3: La Galleria degli Antinati",
+          bgAmbient: "Quadri spaventosi i cui occhi ti fissano nel buio della sala.",
+          questionText: "Siamo nel 2022. La nonna di Miriam è nata nel 1942, sua figlia Giovanna ha la metà dei suoi anni. La figlia di Giovanna, Miriam, ha la metà della metà degli anni della mamma. Quanti anni ha Miriam?",
+          visual: "Anno: 2022\nNonna (1942) ➔ Giovanna (Metà età Nonna) ➔ Miriam (Metà della metà di Giovanna)",
+          options: [
+            { letter: "A", text: "20 anni", val: "20" },
+            { letter: "B", text: "40 anni", val: "40" },
+            { letter: "C", text: "80 anni", val: "80" },
+            { letter: "D", text: "10 anni", val: "10" },
+            { letter: "E", text: "15 anni", val: "15" }
+          ],
+          correct: "D"
+        },
+        {
+          id: 4,
+          name: "Stanza 4: La Prigione delle Decine Perdute",
+          bgAmbient: "Catenacci arrugginiti pendono dal soffitto. Sulla parete c'è inciso un grande numero.",
+          questionText: "Quante decine (raggruppamenti da dieci unità) ci sono nel numero 245?",
+          visual: "Numero da analizzare: [ 2 4 5 ]",
+          options: [
+            { letter: "A", text: "2", val: "2" },
+            { letter: "B", text: "4", val: "4" },
+            { letter: "C", text: "5", val: "5" },
+            { letter: "D", text: "24", val: "24" },
+            { letter: "E", text: "45", val: "45" }
+          ],
+          correct: "D"
+        },
+        {
+          id: 5,
+          name: "Stanza 5: La Torre delle Sottrattrici",
+          bgAmbient: "Vento gelido soffia da finestre senza vetri. Un calderone brucia parole e numeri.",
+          questionText: "Calcola il risultato di questa doppia sottrazione continua:\nUN CENTINAIO MENO DUE DECINE MENO TRE UNITÀ",
+          visual: "( 1 Centinaio ) − ( 2 Decine ) − ( 3 Unità ) = ?",
+          options: [
+            { letter: "A", text: "83", val: "83" },
+            { letter: "B", text: "77", val: "77" },
+            { letter: "C", text: "95", val: "95" },
+            { letter: "D", text: "50", val: "50" },
+            { letter: "E", text: "45", val: "45" }
+          ],
+          correct: "B"
+        },
+        {
+          id: 6,
+          name: "Stanza 6: Il Muro della Dannazione",
+          bgAmbient: "Un muro di mattoncini stregati sbarra la via. Ogni mattone sostiene quelli sopra.",
+          questionText: "IL MURO DI MATTONI: Quale numero devi scrivere nel mattone vuoto in cima al muretto?",
+          visual: "      [ ? ]\n    [16] [24]\n   [6] [10] [14]\n  [2] [4]  [6]  [8]",
+          options: [
+            { letter: "A", text: "26", val: "26" },
+            { letter: "B", text: "32", val: "32" },
+            { letter: "C", text: "10", val: "10" },
+            { letter: "D", text: "34", val: "34" },
+            { letter: "E", text: "40", val: "40" }
+          ],
+          correct: "E"
+        },
+        {
+          id: 7,
+          name: "Stanza 7: L'Ultimo Sigillo della Strega",
+          bgAmbient: "L'ultima porta prima del Portone Finale. Tre calderoni magici ribollono di fumo nero.",
+          questionText: "La strega prepara una pozione: raddoppia i rospi nella prima ora, aggiunge 6 rospi nella seconda e poi divide tutto a metà ottenendo 9 rospi. Quanti rospi aveva all'inizio?",
+          visual: "( ( Rospi x 2 ) + 6 ) : 2 = 9",
+          options: [
+            { letter: "A", text: "6", val: "6" },
+            { letter: "B", text: "7", val: "7" },
+            { letter: "C", text: "8", val: "8" },
+            { letter: "D", text: "5", val: "5" },
+            { letter: "E", text: "10", val: "10" }
+          ],
+          correct: "A"
+        }
+      ]
+    };
+
+    /* ======================================================
+       SISTEMA AUDIO MASTER (SPOOKY vs FREEDOM MUSIC)
+       ====================================================== */
+    let audioCtx = null;
+    let isAudioActive = false;
+    let spookyInterval = null;
+    let freedomInterval = null;
+    let currentAudioMode = 'spooky';
+
+    // MEMORIA DELLE LETTERE E GESTIONE ERRORE DIFFERITA
+    let userChoices = Array(escapeData.rooms.length).fill("_");
+    let wrongIndices = [];
+    let enteredCode = "";
+    let isKeySubmitted = false; // Diventa true SOLO dopo aver premuto "SBLOCCA PORTONE"
+    let fixingMode = false;
+
+    function toggleAudioMaster() {
+      const btn = document.getElementById('toggleAudioBtn');
+      const icon = document.getElementById('audioIcon');
+      const text = document.getElementById('audioText');
+
+      if (!isAudioActive) {
+        if (!audioCtx) {
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        } else if (audioCtx.state === 'suspended') {
+          audioCtx.resume();
+        }
+        isAudioActive = true;
+        btn.classList.add('active');
+        icon.innerText = "🔊";
+        text.innerText = "Audio: ATTIVO";
+        startCurrentMusic();
+      } else {
+        stopAllMusic();
+        if (audioCtx && audioCtx.state === 'running') {
+          audioCtx.suspend();
+        }
+        isAudioActive = false;
+        btn.classList.remove('active');
+        icon.innerText = "🔇";
+        text.innerText = "Audio: SPENTO";
+      }
+    }
+
+    function stopAllMusic() {
+      if (spookyInterval) clearInterval(spookyInterval);
+      if (freedomInterval) clearInterval(freedomInterval);
+      spookyInterval = null;
+      freedomInterval = null;
+    }
+
+    function startCurrentMusic() {
+      if (!isAudioActive || !audioCtx) return;
+      stopAllMusic();
+      if (currentAudioMode === 'spooky') {
+        playSpookyAmbience();
+      } else if (currentAudioMode === 'freedom') {
+        playFreedomFanfare();
+      }
+    }
+
+    function playNote(freq, type = 'sine', duration = 0.5, gainVal = 0.1) {
+      if (!audioCtx || audioCtx.state !== 'running') return;
+      try {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(gainVal, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+      } catch (e) {}
+    }
+
+    function playSpookyAmbience() {
+      const darkNotes = [65.41, 69.30, 77.78, 82.41, 98.00, 103.83, 116.54];
+      spookyInterval = setInterval(() => {
+        if (!isAudioActive) return;
+        const note = darkNotes[Math.floor(Math.random() * darkNotes.length)];
+        playNote(note, 'sawtooth', 2.0, 0.04);
+      }, 900);
+    }
+
+    function playFreedomFanfare() {
+      const melody = [
+        { f: 523.25, d: 0.2 }, { f: 659.25, d: 0.2 }, { f: 783.99, d: 0.2 },
+        { f: 1046.50, d: 0.6 }, { f: 783.99, d: 0.2 }, { f: 1046.50, d: 0.8 }
+      ];
+      let step = 0;
+      freedomInterval = setInterval(() => {
+        if (!isAudioActive) return;
+        const item = melody[step % melody.length];
+        playNote(item.f, 'triangle', item.d, 0.15);
+        step++;
+      }, 300);
+    }
+
+    function switchToFreedomMusic() {
+      currentAudioMode = 'freedom';
+      startCurrentMusic();
+    }
+
+    /* ======================================================
+       ANIMAZIONE PIPISTRELLI VOLANTI
+       ====================================================== */
+    function spawnBat() {
+      const batContainer = document.getElementById('batContainer');
+      if (!batContainer) return;
+      const bat = document.createElement('div');
+      bat.className = 'bat bat-animating';
+
+      const startX = Math.random() * (window.innerWidth - 60);
+      const startY = Math.random() * (window.innerHeight - 60);
+      const scale = 0.6 + Math.random() * 0.8;
+
+      bat.style.left = startX + 'px';
+      bat.style.top = startY + 'px';
+      bat.style.transform = `scale(${scale})`;
+
+      batContainer.appendChild(bat);
+
+      setTimeout(() => { bat.style.opacity = '0.85'; }, 50);
+
+      let currentX = startX;
+      let currentY = startY;
+      let deltaX = (Math.random() - 0.5) * 6;
+      let deltaY = (Math.random() - 0.5) * 6;
+
+      const flyInterval = setInterval(() => {
+        currentX += deltaX;
+        currentY += deltaY;
+        bat.style.left = currentX + 'px';
+        bat.style.top = currentY + 'px';
+
+        if (Math.random() < 0.05) {
+          bat.style.opacity = '0';
+          clearInterval(flyInterval);
+          setTimeout(() => { bat.remove(); }, 500);
+        }
+      }, 40);
+    }
+
+    setInterval(() => {
+      if (Math.random() < 0.6) {
+        spawnBat();
+      }
+    }, 2500);
+
+    /* ======================================================
+       GESTIONE APPLICAZIONE ED ENIGMI
+       ====================================================== */
+    const appEl = document.getElementById('app');
+    const doorOverlay = document.getElementById('doorOverlay');
+
+    function generateKeysBarHTML() {
+      return `
+        <div class="keys-bar">
+          <span style="font-size:0.8rem; color:#c77dff; font-weight:bold; margin-right:4px;">LETTERE:</span>
+          ${userChoices.map((letter, idx) => {
+            const isFilled = letter !== '_';
+            // MOSTRA ERRORI E RENDI CLICCABILI LE CASELLE ERRORE DOPO AVER PREMUTO SBLOCCA PORTONE
+            const showWrong = isKeySubmitted && wrongIndices.includes(idx);
+            const clickAttr = showWrong ? `onclick="goToRoom(${idx})"` : '';
+            return `
+              <div class="key-box ${isFilled ? 'filled' : ''} ${showWrong ? 'wrong-blink' : ''}" ${clickAttr} title="${showWrong ? 'Clicca per correggere la risposta!' : ''}">
+                <span class="key-box-num">S${idx + 1}</span>
+                <span class="key-box-val">${letter}</span>
+                ${showWrong ? `<button class="edit-btn">FIX</button>` : ''}
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    }
+
+    function renderIntro() {
+      appEl.innerHTML = `
+        <h1 class="title">${escapeData.intro.title}</h1>
+        <div class="subtitle">${escapeData.intro.subtitle}</div>
+        
+        <div class="witch-avatar" style="background-image: url('${escapeData.intro.witchImage}')"></div>
+        
+        <div class="puzzle-card">
+          <p class="puzzle-text">${escapeData.intro.description}</p>
+        </div>
+
+        <button class="btn-main" onclick="startEscapeRoom()">ENTRA SE HAI CORAGGIO 🚪</button>
+      `;
+    }
+
+    function startEscapeRoom() {
+      userChoices = Array(escapeData.rooms.length).fill("_");
+      wrongIndices = [];
+      isKeySubmitted = false;
+      fixingMode = false;
+      triggerDoorAnimation(() => {
+        loadRoom(0);
+      });
+    }
+
+    function goToRoom(index) {
+      triggerDoorAnimation(() => {
+        loadRoom(index);
+      });
+    }
+
+    function loadRoom(index) {
+      const room = escapeData.rooms[index];
+      const showWrongText = isKeySubmitted && wrongIndices.includes(index);
+
+      appEl.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+          <span style="color:#ff9e00; font-weight:bold;">STANZA ${room.id} DI ${escapeData.rooms.length}</span>
+          ${showWrongText ? '<span style="color:#ff0000; font-weight:bold; animation:pulse 1s infinite;">⚠️ STANZA ERRATA! SELEZIONA LA NUOVA RISPOSTA!</span>' : ''}
+        </div>
+
+        ${generateKeysBarHTML()}
+
+        <h2 class="room-title">${room.name}</h2>
+        <div class="subtitle">${room.bgAmbient}</div>
+
+        <div class="witch-avatar" style="background-image: url('${escapeData.intro.witchImage}')"></div>
+
+        <div class="puzzle-card">
+          <p class="puzzle-text" style="white-space: pre-line;">${room.questionText}</p>
+          ${room.visual ? `<div class="puzzle-visual">${room.visual}</div>` : ''}
+        </div>
+
+        <p style="margin-bottom:15px; font-weight:bold; color:#ff9e00;">Scegli la risposta per aprire la porta e memorizzare la lettera:</p>
+
+        <div class="options-grid">
+          ${room.options.map(opt => `
+            <button class="opt-btn" onclick="selectAnswerAndOpenDoor(${index}, '${opt.letter}')">
+              <span class="opt-badge">${opt.letter}</span>
+              <span>${opt.text}</span>
+            </button>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    function selectAnswerAndOpenDoor(roomIndex, selectedLetter) {
+      userChoices[roomIndex] = selectedLetter;
+
+      // Se era un errore, rimuovi dalla lista se la nuova risposta è corretta
+      if (wrongIndices.includes(roomIndex)) {
+        if (selectedLetter === escapeData.rooms[roomIndex].correct) {
+          wrongIndices = wrongIndices.filter(i => i !== roomIndex);
+        }
+      }
+
+      // Se eravamo in modalità di correzione dopo aver sbloccato il portone, TORNA SUBITO AL TASTIERINO FINALE
+      if (fixingMode) {
+        triggerDoorAnimation(() => {
+          renderFinalDoor();
+        });
+        return;
+      }
+
+      // Avanzamento normale tra le stanze la prima volta
+      if (roomIndex + 1 < escapeData.rooms.length) {
+        triggerDoorAnimation(() => {
+          loadRoom(roomIndex + 1);
+        });
+      } else {
+        triggerDoorAnimation(() => {
+          renderFinalDoor();
+        });
+      }
+    }
+
+    function renderFinalDoor(errorMessage = "") {
+      enteredCode = "";
+      appEl.innerHTML = `
+        <h1 class="title">LA PORTA DELLA LIBERTÀ</h1>
+        <div class="subtitle">Copia sul tastierino le 7 lettere memorizzate!</div>
+
+        ${errorMessage ? `<div class="error-banner">${errorMessage}</div>` : ''}
+
+        ${generateKeysBarHTML()}
+
+        <div class="keypad-display" id="keypadDisplay">_______</div>
+
+        <div class="keypad-grid">
+          <button class="keypad-btn" onclick="pressKey('A')">A</button>
+          <button class="keypad-btn" onclick="pressKey('B')">B</button>
+          <button class="keypad-btn" onclick="pressKey('C')">C</button>
+          <button class="keypad-btn" onclick="pressKey('D')">D</button>
+          <button class="keypad-btn" onclick="pressKey('E')">E</button>
+          <button class="keypad-btn clear" onclick="clearKeypad()">CANCELLA</button>
+          <button class="keypad-btn submit" onclick="submitCode()">SBLOCCA PORTONE</button>
+        </div>
+      `;
+    }
+
+    function pressKey(letter) {
+      if (enteredCode.length < 7) {
+        enteredCode += letter;
+        updateKeypadDisplay();
+      }
+    }
+
+    function clearKeypad() {
+      enteredCode = "";
+      updateKeypadDisplay();
+    }
+
+    function updateKeypadDisplay() {
+      const display = document.getElementById('keypadDisplay');
+      if (display) {
+        display.innerText = enteredCode.padEnd(7, '_');
+      }
+    }
+
+    function submitCode() {
+      isKeySubmitted = true; // ABILITA LE CASELLE ROSSE E IL CLICK PER CORREGGERE
+      wrongIndices = [];
+
+      // Identifica tutte le risposte errate nelle stanze
+      escapeData.rooms.forEach((room, idx) => {
+        if (userChoices[idx] !== room.correct) {
+          wrongIndices.push(idx);
+        }
+      });
+
+      const correctSequence = escapeData.rooms.map(r => r.correct).join('');
+
+      // Se non ci sono errori e il codice sul tastierino è esatto -> VITTORIA!
+      if (wrongIndices.length === 0 && enteredCode === correctSequence) {
+        switchToFreedomMusic();
+        triggerDoorAnimation(() => {
+          renderWinScreen();
+        });
+      } else {
+        // Se c'è un errore, rimani sulla schermata del portone ed evidenzia in rosso
+        fixingMode = true;
+        appEl.style.animation = "shake 0.4s";
+        setTimeout(() => appEl.style.animation = "", 400);
+
+        if (wrongIndices.length > 0) {
+          // Ci sono errori nelle risposte: rimani qui ed avvisa di cliccare le caselle rosse in alto!
+          renderFinalDoor("⚠️ Errore! Le risposte errate sono evidenziate in rosso in alto! Clicca sulla casella rossa per correggerla.");
+        } else {
+          // Le risposte nelle stanze sono giuste ma la combinazione digitata sul tastierino è errata
+          renderFinalDoor("⚠️ Il codice inserito non corrisponde alle 7 lettere memorizzate! Ricontrolla e digita di nuovo.");
+        }
+      }
+    }
+
+    function renderWinScreen() {
+      appEl.innerHTML = `
+        <h1 class="title" style="color:#00ffcc; text-shadow:0 0 20px #00ffcc;">SEI LIBERO! 🕊️</h1>
+        <div class="subtitle" style="color:#00ffcc;">Le imponenti porte del castello si spalancano!</div>
+
+        <div class="witch-avatar" style="background-image: url('${escapeData.intro.witchImage}'); border-color:#00ffcc; box-shadow:0 0 30px #00ffcc;"></div>
+        
+        <div class="puzzle-card" style="border-color:#00ffcc; text-align:center;">
+          <p class="puzzle-text" style="color:#fff;">NOOOO! IMPOSSIBILE! Hai svelato tutti gli enigmi matematici e inserito la sequenza corretta sulla Porta della Libertà! La maledizione della strega è definitivamente spezzata. Risuona l'inno della vittoria e puoi finalmente varcare il portone verso la libertà!</p>
+        </div>
+      `;
+    }
+
+    function triggerDoorAnimation(callback) {
+      doorOverlay.classList.add('door-active');
+      setTimeout(() => {
+        if (callback) callback();
+        setTimeout(() => {
+          doorOverlay.classList.remove('door-active');
+        }, 300);
+      }, 1000);
+    }
+
+    /* EFFETTO TORCIA */
+    document.addEventListener('mousemove', (e) => {
+      document.documentElement.style.setProperty('--mouse-x', e.clientX + 'px');
+      document.documentElement.style.setProperty('--mouse-y', e.clientY + 'px');
+    });
+
+    // ANIMAZIONE SHAKE PER ERRORE
+    const styleSheet = document.createElement("style");
+    styleSheet.innerText = `
+      @keyframes shake {
+        0% { transform: translate(2px, 2px); }
+        20% { transform: translate(-3px, 0px); }
+        40% { transform: translate(3px, -2px); }
+        60% { transform: translate(-2px, 2px); }
+        100% { transform: translate(0, 0); }
+      }
+    `;
+    document.head.appendChild(styleSheet);
+
+    window.addEventListener('DOMContentLoaded', renderIntro);
+  </script>
+</body>
+</html>
